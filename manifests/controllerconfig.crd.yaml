@@ -179,6 +179,9 @@ spec:
                     type: string
                   metadata:
                     type: object
+                    properties:
+                      annotations:
+                        x-kubernetes-preserve-unknown-fields: true
                   spec:
                     description: spec holds user settable values for configuration
                     properties:

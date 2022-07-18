@@ -17,24 +17,26 @@ const (
 // IsCloudProviderExternal is used to check whether external cloud provider settings should be used in a component.
 // It checks whether the ExternalCloudProvider feature gate is enabled and whether the ExternalCloudProvider feature
 // has been implemented for the platform.
-func IsCloudProviderExternal(platformStatus *configv1.PlatformStatus, featureGate *configv1.FeatureGate) (bool, error) {
-	if platformStatus == nil {
+func IsCloudProviderExternal(config *configv1.Infrastructure, featureGate *configv1.FeatureGate) (bool, error) {
+	if config.Status.PlatformStatus == nil {
 		return false, fmt.Errorf("platformStatus is required")
 	}
-	switch platformStatus.Type {
+	switch config.Status.PlatformStatus.Type {
 	case configv1.AWSPlatformType,
 		configv1.GCPPlatformType,
-		configv1.VSpherePlatformType,
-		configv1.OpenStackPlatformType:
+		configv1.VSpherePlatformType:
 		// Platforms that are external based on feature gate presence
 		return isExternalFeatureGateEnabled(featureGate)
 	case configv1.AzurePlatformType:
-		if isAzureStackHub(platformStatus) {
+		if isAzureStackHub(config.Status.PlatformStatus) {
 			return true, nil
 		}
 		return isExternalFeatureGateEnabled(featureGate)
 	case configv1.IBMCloudPlatformType, configv1.AlibabaCloudPlatformType, configv1.PowerVSPlatformType:
 		return true, nil
+	case configv1.OpenStackPlatformType:
+		blockCCMAnnotation := config.ObjectMeta.Annotations["unsupported-block-ccm-enablement"]
+		return blockCCMAnnotation != "True", nil
 	default:
 		// Platforms that do not have external cloud providers implemented
 		return false, nil
