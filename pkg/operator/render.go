@@ -61,6 +61,7 @@ func (a *assetRenderer) addTemplateFuncs() {
 	funcs["toYAML"] = toYAML
 	funcs["onPremPlatformAPIServerInternalIP"] = onPremPlatformAPIServerInternalIP
 	funcs["onPremPlatformAPIServerInternalIPs"] = onPremPlatformAPIServerInternalIPs
+	funcs["onPremPlatformBGP"] = onPremPlatformBGPConfiguration
 	funcs["onPremPlatformIngressIP"] = onPremPlatformIngressIP
 	funcs["onPremPlatformIngressIPs"] = onPremPlatformIngressIPs
 	funcs["onPremPlatformShortName"] = onPremPlatformShortName
@@ -340,4 +341,22 @@ func onPremPlatformAPIServerInternalIPs(cfg mcfgv1.ControllerConfigSpec) (interf
 		}
 	}
 	return nil, fmt.Errorf("")
+}
+
+func onPremPlatformBGPConfiguration(cfg mcfgv1.ControllerConfigSpec, failureDomainName string) (interface{}, error) {
+	if cfg.Infra.Status.PlatformStatus != nil {
+		switch cfg.Infra.Status.PlatformStatus.Type {
+		case configv1.OpenStackPlatformType:
+			for _, failureDomain := range cfg.Infra.Spec.PlatformSpec.OpenStack.FailureDomains {
+				if failureDomain.Name == failureDomainName {
+					return failureDomain, nil
+				}
+			}
+			return nil, fmt.Errorf("failure domain configuration for %q not found", failureDomainName)
+		default:
+			return nil, fmt.Errorf("invalid platform for BGP configuration")
+		}
+	} else {
+		return nil, fmt.Errorf("")
+	}
 }

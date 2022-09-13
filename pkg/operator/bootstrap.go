@@ -253,6 +253,14 @@ func appendManifestsByPlatform(manifests []manifest, infra configv1.Infrastructu
 				name:     "manifests/on-prem/keepalived.conf.tmpl",
 				filename: "openstack/static-pod-resources/keepalived/keepalived.conf.tmpl",
 			},
+			manifest{
+				name:     "manifests/on-prem/frr.yaml",
+				filename: "openstack/manifests/frr/frr.yaml",
+			},
+			manifest{
+				name:     "manifests/on-prem/frr.conf.tmpl",
+				filename: "openstack/static-pod-resources/frr/frr.conf.tmpl",
+			},
 		)
 	}
 

@@ -1,0 +1,123 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: keepalived
+  namespace: openshift-{{ onPremPlatformShortName .ControllerConfig }}-infra
+  deletionGracePeriodSeconds: 65
+  labels:
+    app: '{{ onPremPlatformShortName .ControllerConfig }}-infra-bgp'
+  annotations:
+    target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
+spec:
+  volumes:
+  - name: resource-dir
+    hostPath:
+      path: "/etc/kubernetes/static-pod-resources/frr"
+  - name: kubeconfig
+    hostPath:
+      path: "/etc/kubernetes/kubeconfig"
+  - name: conf-dir
+    hostPath:
+      path: "/etc/frr"
+  - name: manifests
+    hostPath:
+      path: "/opt/openshift/manifests"
+  - name: run-dir
+    empty-dir: {}
+  initContainers:
+  - name: render-config
+    image: {{ .Images.BaremetalRuntimeCfgBootstrap }}
+    command: # {{ with $bgp := onPremPlatformBGPConfiguration .ControllerConfig .FailureDomainName }}
+    - runtimecfg
+    - render
+    - "/etc/kubernetes/kubeconfig"
+    - "--bgp-neighbours"
+    - '{{ $bgp.Neighbours }}'
+    - "--bgp-asn"
+    - '{{ $bgp.ASN }}'
+    - "--bgp-password"
+    - '{{ $bgp.Password }}'
+    - "/config"
+    - "--out-dir"
+    - "/etc/frr"
+    - "--cluster-config"
+    - "/opt/openshift/manifests/cluster-config.yaml" # {{ end }}
+    resources: {}
+    volumeMounts:
+    - name: kubeconfig
+      mountPath: "/etc/kubernetes/kubeconfig"
+    - name: resource-dir
+      mountPath: "/config"
+    - name: conf-dir
+      mountPath: "/etc/frr"
+    - name: manifests
+      mountPath: "/opt/openshift/manifests"
+    imagePullPolicy: IfNotPresent
+  containers:
+  - name: frr
+    securityContext:
+      privileged: true
+    image: docker.io/frrouting/frr
+    env:
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+    volumeMounts:
+    - name: conf-dir
+      mountPath: "/etc/frr"
+    - name: run-dir
+      mountPath: "/var/run/frr"
+    livenessProbe:
+      exec:
+        command:
+        - vtysh
+        - -c
+        - show bfd peers
+      initialDelaySeconds: 20
+    terminationMessagePolicy: FallbackToLogsOnError
+    imagePullPolicy: IfNotPresent
+  # - name: keepalived-monitor
+  #   image: {{ .Images.BaremetalRuntimeCfgBootstrap }}
+  #   env:
+  #     - name: ENABLE_UNICAST
+  #       value: "yes"
+  #     - name: IS_BOOTSTRAP
+  #       value: "yes"
+  #   command:
+  #   - dynkeepalived
+  #   - "/etc/kubernetes/kubeconfig"
+  #   - "/config/keepalived.conf.tmpl"
+  #   - "/etc/keepalived/keepalived.conf"
+  #   - "--api-vip"
+  #   - "{{ onPremPlatformAPIServerInternalIP .ControllerConfig }}"
+  #   - "--ingress-vip"
+  #   - "{{ onPremPlatformIngressIP .ControllerConfig }}"
+  #   - "--cluster-config"
+  #   - "/opt/openshift/manifests/cluster-config.yaml"
+  #   - "--check-interval"
+  #   - "5s"
+  #   resources:
+  #     requests:
+  #       cpu: 100m
+  #       memory: 200Mi
+  #   volumeMounts:
+  #   - name: resource-dir
+  #     mountPath: "/config"
+  #   - name: kubeconfig
+  #     mountPath: "/etc/kubernetes/kubeconfig"
+  #   - name: conf-dir
+  #     mountPath: "/etc/keepalived"
+  #   - name: run-dir
+  #     mountPath: "/var/run/keepalived"
+  #   - name: manifests
+  #     mountPath: "/opt/openshift/manifests"
+  #   imagePullPolicy: IfNotPresent
+  hostNetwork: true
+  tolerations:
+  - operator: Exists
+  priorityClassName: system-node-critical
+status: {}
