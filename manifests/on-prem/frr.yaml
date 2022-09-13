@@ -75,7 +75,9 @@ spec:
     livenessProbe:
       exec:
         command:
-        - 'true' #TODO(pprinett)
+        - vtysh
+        - -c
+        - show bfd peers
       initialDelaySeconds: 20
     terminationMessagePolicy: FallbackToLogsOnError
     imagePullPolicy: IfNotPresent
