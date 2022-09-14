@@ -341,3 +341,17 @@ func onPremPlatformAPIServerInternalIPs(cfg mcfgv1.ControllerConfigSpec) (interf
 	}
 	return nil, fmt.Errorf("")
 }
+
+//nolint:dupl
+func onPremPlatformBGPConfiguration(cfg mcfgv1.ControllerConfigSpec) (interface{}, error) {
+	if cfg.Infra.Status.PlatformStatus != nil {
+		switch cfg.Infra.Status.PlatformStatus.Type {
+		case configv1.OpenStackPlatformType:
+			return cfg.Infra.Spec.PlatformSpec.OpenStack, nil
+		default:
+			return nil, fmt.Errorf("invalid platform for BGP configuration")
+		}
+	} else {
+		return nil, fmt.Errorf("")
+	}
+}
