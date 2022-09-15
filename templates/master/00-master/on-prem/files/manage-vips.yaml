@@ -1,0 +1,124 @@
+mode: 0755
+path: "/etc/kubernetes/static-pod-resources/frr/scripts/manage_vips.sh.tmpl"
+contents:
+  inline: |
+    #!/bin/bash
+    #
+    # This script is used to monitor the health of an endpoint
+    # and if the endpoint is healthy, it'll make sure that a VIP
+    # exists on the loopback device of the host, otherwise it'll
+    # make sure it doesn't exist.
+    #
+    # To use this script, you must declare a variable for the VIPs:
+    # ```bash
+    # declare -A vips
+    # export vips=(
+    #     ['192.168.100.1']='https://my-endpoint1.example.com'
+    #     ['192.168.100.2']='https://my-endpoint2.example.com'
+    # )
+    # declare -x serialized_vips=$(mktemp)
+    # declare -p vips > "${serialized_vips}"
+    # ```
+    #
+    # Usage:
+    # ./manage_vips.sh {start|cleanup}
+    #
+    # Note: the default delay to check an endpoint is set to 2 seconds but
+    #       you can change it by exporting the CURL_MAX_TIME variable.
+    
+    set -e
+    
+    if [[ -z "${serialized_vips}" ]]; then
+        echo "serialized_vips variable is empty, no VIPs to monitor"
+        exit 0
+    fi
+    
+    source "${serialized_vips}"
+    
+    CURL_MAX_TIME="${CURL_MAX_TIME:-2}"
+    
+    check_health() {
+        # check if the service is healthy if a curl returns 200.
+        # return 0 if healthy, 1 if not.
+        # takes one argument: the URL to check.
+        url=$1
+        RESPONSE=$(/usr/bin/curl --max-time $CURL_MAX_TIME -o /dev/null -kLfs -w "%{http_code}\n" $url)
+        if test ${RESPONSE} -eq 200; then
+            echo "Health check passed for $url"
+            return 0
+        else
+            echo "Health check failed for $url, curl returned $RESPONSE"
+            return 1
+        fi
+    }
+    
+    check_vip() {
+        # check if the VIP is assigned to this node.
+        # return 0 if it is, 1 if not.
+        # takes one argument: the VIP to check.
+        vip=$1
+        if /sbin/ip address show dev lo | grep -q $vip; then
+            echo "VIP $vip is assigned to this node"
+            return 0
+        else
+            echo "VIP $vip is not assigned to this node"
+            return 1
+        fi
+    }
+    
+    create_vip() {
+        # create the VIP on the node.
+        # takes one argument: the VIP to create.
+        vip=$1
+        echo "Creating VIP $vip"
+        /sbin/ip address add $vip/32 dev lo
+    }
+    
+    delete_vip() {
+        # delete the VIP on the node.
+        # takes one argument: the VIP to delete.
+        vip=$1
+        echo "Deleting VIP $vip"
+        /sbin/ip address del $vip/32 dev lo
+    }
+    
+    ensure_vips() {
+        # ensure that the VIPs are assigned to this node
+        # takes one argument: the URL to check.
+        url=$1
+        for vip in "${!vips[@]}"; do
+            url=${vips[$vip]}
+            if check_health $url; then
+                if ! check_vip $vip; then
+                    create_vip $vip
+                fi
+            else
+                if check_vip $vip; then
+                    delete_vip $vip
+                fi
+            fi
+        done
+    }
+    
+    clear_vips() {
+        # delete all VIPs on this node
+        for vip in "${!vips[@]}"; do
+            if check_vip $vip; then
+                delete_vip $vip
+            fi
+        done
+    }
+    
+    case "$1" in
+      start)
+        while :; do
+            ensure_vips
+        done
+        ;;
+      cleanup)
+        clear_vips
+        ;;
+      *)
+        echo $"Usage: $0 {start|cleanup}"
+        exit 1
+    esac
