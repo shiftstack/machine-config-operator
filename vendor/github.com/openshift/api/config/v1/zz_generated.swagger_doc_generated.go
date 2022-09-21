@@ -980,6 +980,16 @@ func (ImageTagMirrors) SwaggerDoc() map[string]string {
 	return map_ImageTagMirrors
 }
 
+var map_APILoadBalancer = map[string]string{
+	"":     "APILoadBalancerType defines how inbound traffic is routed to the API servers.",
+	"type": "apiLoadBalancerType defines the type of loadbalancer which will be configured for the API server. Permitted values are `VRRP` and `BGP`. When omitted, this means no opinion and the platform is left to choose a reasonable default. This default is subject to change over time. The current default value is `VRRP`.",
+	"bgp":  "bgpConfiguration describes the configuration of a BGP load balancer for the API server. It is only used if apiLoadBalancer is set to `BGP`.",
+}
+
+func (APILoadBalancer) SwaggerDoc() map[string]string {
+	return map_APILoadBalancer
+}
+
 var map_AWSPlatformSpec = map[string]string{
 	"":                 "AWSPlatformSpec holds the desired state of the Amazon Web Services infrastructure provider. This only includes fields that can be modified in the cluster.",
 	"serviceEndpoints": "serviceEndpoints list contains custom endpoints which will override default service endpoint of AWS Services. There must be only one ServiceEndpoint for a service.",
@@ -1251,8 +1261,52 @@ func (NutanixPrismEndpoint) SwaggerDoc() map[string]string {
 	return map_NutanixPrismEndpoint
 }
 
+var map_OpenStackAPIBGPConfiguration = map[string]string{
+	"apiVIPs":  "apiVIPs is a list of IP addresses which will be used to reach the API server from within the cluster. The list must contain at least one address. It may contain both IPv4 and IPv6 addresses.",
+	"speakers": "speakers is a list of BGP speaker configurations. We require a speaker configuration for every failure domain hosting a control plane node. The list must contain at least one item.",
+}
+
+func (OpenStackAPIBGPConfiguration) SwaggerDoc() map[string]string {
+	return map_OpenStackAPIBGPConfiguration
+}
+
+var map_OpenStackAPIBGPPeer = map[string]string{
+	"asn":      "asn is the Autonomous System number of the peer.",
+	"ip":       "ip is the IP address of the peer. It may be either IPv4 or IPv6.",
+	"password": "password for BGP authentication against the peer",
+}
+
+func (OpenStackAPIBGPPeer) SwaggerDoc() map[string]string {
+	return map_OpenStackAPIBGPPeer
+}
+
+var map_OpenStackAPIBGPSpeaker = map[string]string{
+	"":              "OpenStackAPIBGPSpeaker describes the BGP autonomous system that will contain the API VIP for a specific failure domain.",
+	"failureDomain": "failureDomain is the name of a failure domain which this BGP configuration applies to. A failure domain with that name must be defined in the OpenStack platform spec.",
+	"asn":           "asn specifies the Autonomous System number to be used by the BGP speaker.",
+	"peers":         "peers is a list of all BGP peers of the speaker for the VIPs of this failure domain. The list must contain at least one item.",
+}
+
+func (OpenStackAPIBGPSpeaker) SwaggerDoc() map[string]string {
+	return map_OpenStackAPIBGPSpeaker
+}
+
+var map_OpenStackFailureDomain = map[string]string{
+	"":            "OpenStackFailureDomain specifies a failure domain for an OpenStack server. Specifically, it specifies a set of values which will be set on all machines using the failure domain.",
+	"name":        "name is an arbitrary, unique name for this failure domain. This name can be used to refer to this failure domain when building a BGP speaker configuration.",
+	"computeZone": "computeZone specifies the OpenStack Compute availability zone for all servers in this failure domain.\n\nIf not specified the servers are provisioned without reference to availability zones. Server placement is delegated to the OpenStack defaults. ",
+	"storageZone": "storageZone specifies the OpenStack storage availability zone for all volumes in this failure domain.\n\nIf not specified the volumes are provisioned without reference to availability zones. Volume placement is delegated to the OpenStack defaults. ",
+	"subnetID":    "subnetID specifies an OpenStack subnet ID which will be attached as the first NIC of every server in this failure domain.",
+}
+
+func (OpenStackFailureDomain) SwaggerDoc() map[string]string {
+	return map_OpenStackFailureDomain
+}
+
 var map_OpenStackPlatformSpec = map[string]string{
-	"": "OpenStackPlatformSpec holds the desired state of the OpenStack infrastructure provider. This only includes fields that can be modified in the cluster.",
+	"":                "OpenStackPlatformSpec holds the desired state of the OpenStack infrastructure provider. This only includes fields that can be modified in the cluster.",
+	"failureDomains":  "failureDomains is a list of failure domains available to Machines. Each failure domain has a name that can be referenced in Machines; Machines referencing a failure domain will be set the corresponding failure domain values. If no failure domain is defined, Machines can't reference any. If a Machine doesn't reference a failure domain, it is spun in the cluster subnet, using the OpenStack default availability zones.",
+	"apiLoadBalancer": "apiLoadBalancer defines how traffic destined to the OpenShift API is routed to the API servers. When omitted, this means no opinion and the platform is left to choose a reasonable default. This default is subject to change over time. The current default configuration uses VRRP.",
 }
 
 func (OpenStackPlatformSpec) SwaggerDoc() map[string]string {

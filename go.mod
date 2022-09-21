@@ -314,3 +314,6 @@ replace (
 	github.com/openshift/cluster-api => github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/securego/gosec => github.com/securego/gosec v0.0.0-20190709033609-4b59c948083c
 )
+
+// Use FailureDomain from https://github.com/openshift/api/pull/1243
+replace github.com/openshift/api => github.com/shiftstack/api v0.0.0-20220920152508-312ab0c3fed2
