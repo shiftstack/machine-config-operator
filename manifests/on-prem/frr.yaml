@@ -27,7 +27,8 @@ spec:
     empty-dir: {}
   initContainers:
   - name: render-config
-    image: {{ .Images.BaremetalRuntimeCfgBootstrap }}
+    # changeme once the PR has merged into baremetal-runtimecfg
+    image: quay.io/emilien/baremetal-runtimecfg:bgp
     command:
     # {{ with $bgp := onPremPlatformBGPConfiguration .FailureDomainName }}
     - runtimecfg 
@@ -60,10 +61,15 @@ spec:
   - name: frr
     securityContext:
       privileged: true
-    image: docker.io/frrouting/frr
+    image: quay.io/emilien/frr:latest
     env:
       - name: NSS_SDB_USE_CACHE
         value: "no"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          /usr/lib/frr/frr start && exec /bin/sleep infinity
     resources:
       requests:
         cpu: 100m
@@ -93,77 +99,10 @@ spec:
     - -c
     - |
       #/bin/bash
-      
       API_VIP="{{ .Cluster.APIVIP }}"
       VIP_NETMASK="{{ .Cluster.VIPNetmask }}"
-
       ip address add $API_VIP/$VIP_NETMASK dev lo
       echo "VIP $API_VIP/$VIP_NETMASK was created on this node"
-
-      CURL_MAX_TIME="${CURL_MAX_TIME:-2}"
-      
-      check_health() {
-          # check if the service is healthy if a curl returns 200.
-          # return 0 if healthy, 1 if not.
-          # takes one argument: the URL to check.
-          url=$1
-          RESPONSE=$(/usr/bin/curl --max-time $CURL_MAX_TIME -o /dev/null -kLfs -w "%{http_code}\n" $url)
-          if test ${RESPONSE} -eq 200; then
-              echo "Health check passed for $url"
-              return 0
-          else
-              echo "Health check failed for $url, curl returned $RESPONSE"
-              return 1
-          fi
-      }
-      
-      check_vip() {
-          # check if the VIP is assigned to this node.
-          # return 0 if it is, 1 if not.
-          # takes one argument: the VIP to check.
-          vip=$1
-          if /sbin/ip address show dev lo | grep -q $vip; then
-              echo "VIP $vip is assigned to this node"
-              return 0
-          else
-              echo "VIP $vip is not assigned to this node"
-              return 1
-          fi
-      }
-      
-      delete_vip() {
-          # delete the VIP on the node.
-          # takes one argument: the VIP to delete.
-          vip=$1
-          echo "Deleting VIP $vip"
-          /sbin/ip address del $vip/32 dev lo
-      }
-      
-      list_healthy_masters() {
-          # List all healthy masters
-          masterNodesReady=$(oc get nodes -l node-role.kubernetes.io/master | grep "Ready" | awk '{ print $1 }')
-          for master in $masterNodesReady; do
-              echo "$master node is Ready"
-              masterInternalIP=(oc get node/$master -o 'jsonpath={.status.addresses[?(@.type=="InternalIP")].address}')
-              if check_health "https://$masterInternalIP:6443/readyz"; then
-                  echo "$master node is healthy"
-                  return 0
-              fi
-          done
-          echo "No healthy master nodes found"
-          return 1
-      }
-      
-      while :; do
-          if list_healthy_masters; then
-              echo "At least one healthy master node found"
-              if check_vip $API_VIP; then
-                  delete_vip $API_VIP/$VIP_NETMASK
-                  echo "VIP $API_VIP/$VIP_NETMASK deleted, exiting"
-                  exit 0
-              fi
-          fi
-      done
     resources:
       requests:
         cpu: 100m

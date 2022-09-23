@@ -21,4 +21,7 @@ const (
 
 	// BaremetalRuntimeCfgKey is the key that references the baremetal-runtimecfg image in the controller
 	BaremetalRuntimeCfgKey string = "baremetalRuntimeCfgImage"
+
+	// FrrKey is the key that references the frr image in the controller
+	FrrKey string = "frrImage"
 )
