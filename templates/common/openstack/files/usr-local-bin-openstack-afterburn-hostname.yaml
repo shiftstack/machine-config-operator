@@ -6,5 +6,5 @@ contents:
     set -euo pipefail
 
     # Fetch hostname from OpenStack. Set both transient and static hostnames to
-    # ensure node-valid-hostname sees the new hostname immediately.
+    # ensure node-valid-hostname sees the new hostname.
     /usr/bin/afterburn --provider openstack --hostname=/dev/stdout | xargs hostnamectl set-hostname
